@@ -1,4 +1,4 @@
-import { check } from "express-validator"
+import { check } from "express-validator";
 
 export default [
   check('username', "username cannot be emty").notEmpty(),

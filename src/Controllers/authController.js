@@ -1,41 +1,50 @@
+import Jwt from "jsonwebtoken";
+import { secret } from "../config/configjwt.js";
+import { rigth, error } from "../utility/error.js";
 import { validationResult } from "express-validator";
 import authServise from "../Services/authServise.js";
 
 class AuthControllers {
-  
-
   async registration(req, res) {
     try {
       const errors = validationResult(req);
       if (!errors.isEmpty()) {
-        return res.status(400).json({ message: 'registration error', errors });
+        res.status(400).json({ message: errors });
+        return 
       };
       const { username, password } = req.body;
-      const registration = await authServise.registartinUser(username, password);
+      const registration = await authServise.userRegistartion(username, password);
       if (!registration) {
-        return res.status(400).json({ message: `Username ${username} is already exists` });
+        res.status(401).json({ message: error.nameExsist(username) });
+        return
       } else {
-        return res.status(200).json({ message: `user ${username} successfully registered` });
+        res.status(200).json({ message: rigth.registered(username) });
+        return
       }
     } catch (err) {
       console.log(err);
-      res.status(400).json({ message: 'Registration error' });
+      res.status(500).json({ message: err });
     }
   }
 
   async login(req, res) {
-    try {
+    try { 
       const { username, password } = req.body
       const login = await authServise.loginUser(username, password)
       if (login === 'no user') {
-        return res.status(404).json({ message:`user ${username} not found` })
+        res.status(404).json({ error: error.login() })
+        return
       } else if (login === 'invalid password') {
-        return res.status(400).json({ message: 'Wrong password entered' })
+        res.status(400).json({ error: error.password() })
+        return
       } 
-      return res.status(200).json({ login })
+      const { accessToken, refreshToken, user } = login
+      res.cookie('refreshToken', refreshToken, { httpOnly: true })
+      res.setHeader('accessToken', accessToken)
+      res.status(200).json({ message: 'user data'})
     } catch (err) {
       console.log(err)
-      res.status(400).json( { message: 'Login error' } )
+      res.status(500).json( { error: err } )
     }
   }
 
@@ -45,7 +54,30 @@ class AuthControllers {
       res.status(200).json({ users })
     } catch (err) {
       console.log(err)
-      res.status(400).json( { message: ' error' } )
+      res.status(500).json({ error: err })
+    }
+  }
+
+  async updateToken(req, res) {
+    try {
+      const { refreshToken } = req.cookies
+      const { username } = Jwt.verify(refreshToken, secret)
+      const token = await authServise.updateToken(username, refreshToken)
+      res.setHeader('accesToken', token)
+      res.status(200).json({ accessToken: token })
+    } catch (err) {
+      if (err instanceof Jwt.JsonWebTokenError) {
+        console.log(err)
+        res.status(400).json({ error: error.iToken() })
+        return
+      }
+      if (err instanceof Jwt.TokenExpiredError) {
+        console.log(err)
+        res.status(400).json({ error: error.eToken() })
+        return
+      }
+      console.log(err)
+      res.status(500).json({ error: err })
     }
   }
 }

@@ -6,5 +6,14 @@ export const generateAccessToken = (id, roles) => {
     id,
     roles
   }
-  return Jwt.sign(payload, secret, { expiresIn: "12h" } )
+  return Jwt.sign(payload, secret, { expiresIn: "1h" } )
 }
+export const generatorRefreshToken = (id, roles, username) => {
+  const payload = { 
+    id, 
+    roles,
+    username
+  }  
+  return Jwt.sign(payload, secret, { expiresIn: "15d" })
+}
+

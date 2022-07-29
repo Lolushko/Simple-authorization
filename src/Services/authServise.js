@@ -1,17 +1,17 @@
 import bcrypt from "bcryptjs";
 import Role from "../Models/role.js";
 import User from "../Models/user.js";
-import { generateAccessToken } from "../config/configjwt.js"
+import { generateAccessToken, generatorRefreshToken } from "../config/configjwt.js";
 
 class AuthServise {
 
-  async registartinUser(username, password) {  
+  async userRegistartion(username, password) {  
     const condidate = await User.findOne({ username });
     if (condidate) {
       return false;
     } else {
-      var hashPassword = bcrypt.hashSync(password, 5);
-      const userRole = await Role.findOne({ value: "User" });
+      const hashPassword = bcrypt.hashSync(password, 5);
+      const userRole = await Role.findOne({ value: "Admin" });
       const user = new User({ username, password: hashPassword, roles: [userRole.value] });
       await user.save();
       return true;
@@ -19,7 +19,6 @@ class AuthServise {
   };
 
   async loginUser(username, password) {
-    
     const user = await User.findOne({ username })
     if (!user) {
       return 'no user'
@@ -28,12 +27,26 @@ class AuthServise {
     if (!validPassword) {
       return 'invalid password'
     } 
-    const token = generateAccessToken(user._id, user.roles)
-    return token
+    const accessToken = generateAccessToken(user._id, user.roles)
+    const refreshToken = generatorRefreshToken(user._id, user.roles, username)
+    await User.updateOne({ username }, { refreshToken })
+    return { accessToken, refreshToken, user }
   }
   
   async getAllUsers() {
     return await User.find()
+  }
+
+  async updateToken(username, refreshToken) {
+    try {
+    const user = await User.findOne({ username })
+    if (user.refreshToken === refreshToken) {
+      return generateAccessToken(user._id, user.roles)
+    } 
+    } catch (err) {
+      console.log(err)
+      return err
+    }
   }
 };
 
